@@ -99,7 +99,15 @@ async fn main() {
                                                 println!("Writing: {}", text);
 
                                                 for char in text.chars() {
-                                                    enigo.lock().await.key_click(enigo::Key::Layout(char));
+                                                    let is_uppercase = char.is_uppercase();
+
+                                                    if is_uppercase {
+                                                        enigo.lock().await.key_down(enigo::Key::Shift);
+                                                    }
+                                                    enigo.lock().await.key_click(enigo::Key::Layout(char.to_lowercase().to_string().chars().next().unwrap()));
+                                                    if is_uppercase {
+                                                        enigo.lock().await.key_up(enigo::Key::Shift);
+                                                    }
                                                     tokio::time::sleep(tokio::time::Duration::from_millis(settings.delay)).await;
                                                 }
                                             }
