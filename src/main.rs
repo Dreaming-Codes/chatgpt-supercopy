@@ -93,12 +93,15 @@ async fn main() {
                                                 continue;
                                             };
 
-                                            for char in chars.chars() {
-                                                let text = &char.to_string();
+                                            for token in chars.chars() {
+                                                let text = &token.to_string();
 
                                                 println!("Writing: {}", text);
 
-                                                enigo.lock().await.key_sequence(text);
+                                                for char in text.chars() {
+                                                    enigo.lock().await.key_click(enigo::Key::Layout(char));
+                                                    tokio::time::sleep(tokio::time::Duration::from_millis(settings.delay)).await;
+                                                }
                                             }
                                         }
                                     }
