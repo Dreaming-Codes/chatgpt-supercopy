@@ -3,11 +3,12 @@
 use std::ops::Deref;
 use std::sync::Arc;
 use std::thread;
+use async_openai::Client;
+use async_openai::config::OpenAIConfig;
+use async_openai::types::{ChatCompletionRequestMessage, CreateChatCompletionRequestArgs, Role};
 
 use enigo::KeyboardControllable;
 use futures_util::stream::StreamExt;
-use openai_dive::v1::api::Client;
-use openai_dive::v1::resources::chat_completion::{ChatCompletionParameters, ChatMessage, Role};
 use rdev::{EventType, listen};
 use tokio::sync::{mpsc, Mutex, RwLock};
 use tokio::task::JoinHandle;
@@ -19,7 +20,7 @@ async fn main() {
     //Load settings from ./settings.json
     let settings = settings::Settings::load().await.expect("Failed to load settings");
 
-    let openai_client = Client::new(settings.api_key);
+    let openai_client = Client::with_config(OpenAIConfig::new().with_api_key(settings.api_key));
 
     let (schan, mut rchan) = mpsc::unbounded_channel();
     let _listener = thread::spawn(move || {
@@ -59,26 +60,19 @@ async fn main() {
                             //Use arboard to get the clipboard contents
                             let clipboard_contents = clipboard_handle.get_text().expect("Failed to get clipboard contents");
                             //Create a new completion request
-                            let completion = ChatCompletionParameters {
-                                model: settings.model.clone(),
-                                messages: vec![
-                                    ChatMessage {
+                            let chat_request = CreateChatCompletionRequestArgs::default()
+                                .model(settings.model.clone())
+                                .messages(vec![
+                                    ChatCompletionRequestMessage {
                                         role: Role::User,
-                                        content: clipboard_contents,
+                                        content: Some(clipboard_contents),
                                         name: None,
+                                        function_call: None,
                                     }
-                                ],
-                                temperature: None,
-                                top_p: None,
-                                n: None,
-                                stop: None,
-                                max_tokens: None,
-                                presence_penalty: None,
-                                frequency_penalty: None,
-                                logit_bias: None,
-                            };
+                                ])
+                                .build().unwrap();
 
-                            let Ok(mut stream) = openai_client.chat().create_stream(completion).await else {
+                            let Ok(mut stream) = openai_client.chat().create_stream(chat_request).await else {
                                 continue;
                             };
 
